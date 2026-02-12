@@ -16,8 +16,11 @@ Run:
     python demo_final.py
 """
 
+import os
 import sys
 import time
+
+import config
 
 from pipeline.master_pipeline import MasterPipeline
 from metrics.scoring_engine import get_investment_profile
@@ -30,6 +33,14 @@ from utils.formatter import (
     print_consistency_report,
     print_risk_adjusted_report,
 )
+
+
+# ── Auto-detect offline mode ──
+# Set MF_OFFLINE=1 environment variable to skip all API calls
+_OFFLINE_ENV = os.environ.get("MF_OFFLINE", "").strip().lower() in ("1", "true", "yes")
+if _OFFLINE_ENV:
+    config.OFFLINE_MODE = True
+    print("\n   ⚡ OFFLINE MODE — using synthetic fixture data")
 
 
 # ────────────────────────────────────────────────
@@ -49,8 +60,17 @@ PRIMARY_FUND = 122639          # detailed analysis target
 PROFILE = "growth"             # investment profile
 
 
+if getattr(config, "OFFLINE_MODE", False):
+    FUND_CODES = {
+        "Fixture Flexi Cap": 100001,
+        "Fixture Large Cap": 100002,
+        "Fixture Small Cap": 100003,
+    }
+    PRIMARY_FUND = 100001
+
+
 def main():
-    pipeline = MasterPipeline()
+    pipeline = MasterPipeline(offline_mode=getattr(config, 'OFFLINE_MODE', False))
 
     print("\n" + "█" * 90)
     print("█" + " " * 88 + "█")

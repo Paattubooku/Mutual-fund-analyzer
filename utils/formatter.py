@@ -6,7 +6,9 @@ No external dependencies — pure string formatting.
 """
 
 from __future__ import annotations
-from data.models import TrailingReturnReport
+from typing import List
+
+from data.models import TrailingReturnReport, AnalysisWarning, MasterReport
 
 
 # ─── Box-drawing constants ───
@@ -1950,15 +1952,44 @@ def print_ranking_table(ranking: RankingTable) -> None:
         print()
 
 
+def print_warnings(warnings: List[AnalysisWarning]) -> None:
+    """Print analysis warnings in a structured format."""
+    if not warnings:
+        return
+
+    errors = [w for w in warnings if w.severity == "ERROR"]
+    infos = [w for w in warnings if w.severity in ("INFO", "WARNING")]
+
+    if errors:
+        print()
+        print("─" * 90)
+        print(f"   🔧 ANALYSIS WARNINGS ({len(errors)} errors, {len(infos)} info)")
+        print("─" * 90)
+
+        for w in errors:
+            print(f"   ❌ [{w.section}] {w.message}")
+            if w.exception_detail:
+                detail = w.exception_detail
+                if len(detail) > 120:
+                    detail = detail[:117] + "..."
+                print(f"      {w.exception_type}: {detail}")
+
+        for w in infos:
+            print(f"   ℹ️  [{w.section}] {w.message}")
+
+        print()
+
+
 def print_master_report(report: MasterReport) -> None:
     """Render the complete master report."""
 
-    # Summary first
     if report.summary:
         print()
         for line in report.summary:
             print(f"   {line}")
 
-    # Score card
+    if hasattr(report, 'warnings') and report.warnings:
+        print_warnings(report.warnings)
+
     if report.fund_score:
         print_fund_score(report.fund_score)

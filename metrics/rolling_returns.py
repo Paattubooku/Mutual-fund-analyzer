@@ -675,68 +675,59 @@ def generate_rolling_report(
     windows: Optional[List[Tuple[str, float]]] = None,
     step_days: int = 1,
 ) -> RollingReturnReport:
-    """
-    End-to-end rolling return analysis:
-      1. Calculate rolling returns for each window length
-      2. Compare vs benchmark if provided
-      3. Generate automated interpretation
-      4. Package everything into RollingReturnReport
-
-    Parameters
-    ----------
-    fund_nav      : NAVData for the fund
-    benchmark_nav : NAVData for benchmark (optional)
-    windows       : list of (label, years) tuples
-                    defaults to DEFAULT_ROLLING_WINDOWS
-    step_days     : 1=daily, 5=weekly, 21=monthly rolling
-                    (daily is most thorough but slowest)
-
-    Returns
-    -------
-    RollingReturnReport
-    """
+    """Generate the complete rolling-returns report."""
     if windows is None:
         windows = DEFAULT_ROLLING_WINDOWS
 
+    from utils.logger import get_logger
+    log = get_logger(__name__)
+
     distributions: List[RollingReturnDistribution] = []
     time_series_list: List[RollingReturnTimeSeries] = []
+    skipped_windows: List[str] = []
 
     for label, years in windows:
-        # ── Check if fund has enough history ──
         if fund_nav.history_years < years:
-            continue  # skip this window — not enough data
+            skipped_windows.append(f"{label} (need {years:.1f}y, have {fund_nav.history_years:.1f}y)")
+            continue
 
         if benchmark_nav is not None and benchmark_nav.history_years < years:
-            # Benchmark too short — fall back to fund-only for this window
+            log.info("%s: benchmark too short (%.1fy < %.1fy) — computing fund-only", label, benchmark_nav.history_years, years)
             try:
-                dist, ts = calculate_rolling_returns(
-                    fund_nav, years, label, step_days
-                )
-            except ValueError:
+                dist, ts = calculate_rolling_returns(fund_nav, years, label, step_days)
+            except ValueError as e:
+                log.warning("%s fund-only failed: %s", label, e)
+                skipped_windows.append(f"{label} ({e})")
                 continue
         elif benchmark_nav is not None:
             try:
-                dist, ts = compare_rolling_returns(
-                    fund_nav, benchmark_nav, years, label, step_days
-                )
-            except ValueError:
-                continue
+                dist, ts = compare_rolling_returns(fund_nav, benchmark_nav, years, label, step_days)
+            except ValueError as e:
+                log.warning("%s comparison failed: %s — trying fund-only", label, e)
+                try:
+                    dist, ts = calculate_rolling_returns(fund_nav, years, label, step_days)
+                except ValueError as e2:
+                    skipped_windows.append(f"{label} ({e2})")
+                    continue
         else:
             try:
-                dist, ts = calculate_rolling_returns(
-                    fund_nav, years, label, step_days
-                )
-            except ValueError:
+                dist, ts = calculate_rolling_returns(fund_nav, years, label, step_days)
+            except ValueError as e:
+                skipped_windows.append(f"{label} ({e})")
                 continue
 
         distributions.append(dist)
         time_series_list.append(ts)
 
+    if skipped_windows:
+        log.info("Skipped rolling windows: %s", "; ".join(skipped_windows))
+
     if not distributions:
         raise ValueError(
             f"No rolling windows could be computed. "
             f"Fund history: {fund_nav.history_years:.1f} years. "
-            f"Minimum required: {min(y for _, y in windows):.1f} years."
+            f"Minimum required: {min(y for _, y in windows):.1f} years. "
+            f"Skipped: {'; '.join(skipped_windows) if skipped_windows else 'none'}"
         )
 
     interpretation = _interpret_rolling(distributions)

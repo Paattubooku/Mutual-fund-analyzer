@@ -847,14 +847,34 @@ class MasterReport:
     as_of_date: dt.date
 
     # Component reports (from previous sections)
-    trailing_returns: Optional[object]   # TrailingReturnReport
-    rolling_returns: Optional[object]    # RollingReturnReport
-    consistency: Optional[object]        # ConsistencyReport
-    sip_returns: Optional[object]        # SIPReturnReport
-    risk_adjusted: Optional[object]      # RiskAdjustedReport
+    trailing_returns: Optional[object]
+    rolling_returns: Optional[object]
+    consistency: Optional[object]
+    sip_returns: Optional[object]
+    risk_adjusted: Optional[object]
 
     # Scoring
     fund_score: Optional[FundScore]
 
+    # Diagnostics
+    warnings: List["AnalysisWarning"] = field(default_factory=list)
+
     # Overall summary
     summary: List[str] = field(default_factory=list)
+
+
+# ─────────────────────────────────────────────────────────
+# ADDITIONS FOR STEP 9 — WARNINGS AND DIAGNOSTICS
+# ─────────────────────────────────────────────────────────
+
+@dataclass
+class AnalysisWarning:
+    """
+    A structured warning collected during the analysis pipeline.
+    Replaces silent exception swallowing with traceable diagnostics.
+    """
+    section: str
+    severity: str
+    message: str
+    exception_type: Optional[str] = None
+    exception_detail: Optional[str] = None
