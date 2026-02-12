@@ -1,0 +1,1 @@
+"""pipeline package — end-to-end analysis orchestration."""

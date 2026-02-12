@@ -1,0 +1,1 @@
+"""utils package — display and formatting helpers."""

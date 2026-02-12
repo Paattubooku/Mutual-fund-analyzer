@@ -1,0 +1,1 @@
+"""data package — fetching, caching, and modelling NAV data."""
