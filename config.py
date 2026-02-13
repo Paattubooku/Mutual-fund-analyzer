@@ -52,3 +52,29 @@ TRAILING_PERIODS = [
 # NAV DATE LOOKUP
 # ──────────────────────────────────────────────
 MAX_NAV_LOOKBACK_DAYS = 10    # search window for nearest trading day
+# ──────────────────────────────────────────────
+# LOGGING
+# ──────────────────────────────────────────────
+import logging
+
+LOG_LEVEL = logging.INFO
+LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+LOG_DATE_FORMAT = "%H:%M:%S"
+
+# ──────────────────────────────────────────────
+# OFFLINE / FIXTURE MODE
+# ──────────────────────────────────────────────
+OFFLINE_MODE = False               # set True to skip all API calls
+FIXTURE_HISTORY_YEARS = 5          # years of synthetic data to generate
+FIXTURE_BASE_NAV = 100.0
+FIXTURE_ANNUAL_DRIFT = 0.12        # 12% annual drift for synthetic NAV
+FIXTURE_ANNUAL_VOL = 0.18          # 18% annualised volatility
+
+# ──────────────────────────────────────────────
+# ANALYSIS MINIMUMS
+# ──────────────────────────────────────────────
+MIN_MONTHS_VOLATILITY = 6
+MIN_MONTHS_BETA = 12
+MIN_MONTHS_CONSISTENCY = 12
+MIN_SIP_INSTALLMENTS = 3
+MIN_ROLLING_OBSERVATIONS = 3

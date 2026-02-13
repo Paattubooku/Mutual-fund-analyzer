@@ -28,6 +28,7 @@ from typing import Optional, List, Tuple
 import numpy as np
 import pandas as pd
 
+import config
 from config import RISK_FREE_RATE
 from data.models import (
     NAVData,
@@ -50,12 +51,27 @@ def _monthly_returns(
     Convert daily NAV to monthly returns.
     Optionally restrict to the last `period_years`.
 
-    Returns pd.Series indexed by month-end date,
-    values are decimal returns (e.g. 0.05 = 5%).
+    FIX: Drops the first and last months if they are partial,
+    preventing the resampler from producing a misleadingly
+    short or distorted return for an incomplete month.
     """
     series = nav_data.nav_series.copy()
     monthly_nav = series.resample('ME').last().dropna()
     monthly_ret = monthly_nav.pct_change().dropna()
+
+    if len(series) > 0:
+        first_date = series.index[0]
+        if first_date.day > 15 and len(monthly_ret) > 0:
+            first_month_end = monthly_ret.index[0]
+            if first_month_end.month == first_date.month and first_month_end.year == first_date.year:
+                monthly_ret = monthly_ret.iloc[1:]
+
+    if len(series) > 0:
+        last_date = series.index[-1]
+        if last_date.day < 15 and len(monthly_ret) > 0:
+            last_month_end = monthly_ret.index[-1]
+            if last_month_end.month == last_date.month and last_month_end.year == last_date.year:
+                monthly_ret = monthly_ret.iloc[:-1]
 
     if period_years is not None:
         n_months = int(period_years * 12)
@@ -130,9 +146,16 @@ def calculate_volatility(
     monthly_ret = _monthly_returns(fund_nav, period_years)
     n = len(monthly_ret)
 
-    if n < 6:
+    min_months = config.MIN_MONTHS_VOLATILITY
+    if n < min_months:
+        actual_period = f"{n} months"
+        if period_years:
+            actual_period += f" (requested {period_years}Y = {int(period_years*12)} months)"
         raise ValueError(
-            f"Need at least 6 months of data. Found: {n} months."
+            f"Need at least {min_months} complete months of data for volatility. "
+            f"Found: {actual_period}. "
+            f"This can happen if the fund is very new or if partial months "
+            f"at the start/end of the NAV series were dropped."
         )
 
     ret_arr = monthly_ret.values
